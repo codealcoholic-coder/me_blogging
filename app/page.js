@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Calendar, Eye, Clock, BookOpen, Minus, X } from 'lucide-react'
+import { Calendar, Eye, Clock, BookOpen, Minus } from 'lucide-react'
 import { format } from 'date-fns'
 import AuthModal from '@/components/auth/AuthModal'
 
@@ -213,7 +213,7 @@ export default function HomePage() {
       )}
 
       {/* Categories */}
-      {categories.length > 0 && (
+      {categories && categories.length > 0 && (
         <section className="py-16 border-t border-border/50">
           <div className="container mx-auto px-6">
             <div className="max-w-6xl mx-auto">
@@ -351,7 +351,7 @@ export default function HomePage() {
               <div>
                 <h4 className="text-sm font-medium mb-4 tracking-wide">Topics</h4>
                 <div className="flex flex-wrap gap-2">
-                  {categories.slice(0, 4).map((cat) => (
+                  {categories && categories.slice(0, 4).map((cat) => (
                     <span key={cat.id} className="text-xs px-3 py-1 border border-border/50 text-muted-foreground">
                       {cat.name}
                     </span>
