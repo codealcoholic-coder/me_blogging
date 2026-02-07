@@ -8,11 +8,30 @@ let client
 let db
 
 async function connectToMongo() {
+  console.log("Entered connectToMongo")
+
+  if (!process.env.MONGO_URL) {
+    throw new Error("MONGO_URL missing in env")
+  }
+
+  if (!process.env.DB_NAME) {
+    throw new Error("DB_NAME missing in env")
+  }
+
   if (!client) {
+    console.log("Creating Mongo client")
+
     client = new MongoClient(process.env.MONGO_URL)
     await client.connect()
-    db = client.db(process.env.DB_NAME || 'blog_db')
+
+    console.log("✅ Mongo connected")
   }
+
+  if (!db) {
+    db = client.db(process.env.DB_NAME)
+    console.log("✅ DB selected:", db.databaseName)
+  }
+
   return db
 }
 
