@@ -5,22 +5,22 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Calendar, Eye, Clock, ArrowRight } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Calendar, Eye, Clock, Search } from 'lucide-react'
 import { format } from 'date-fns'
 
-export default function HomePage() {
+export default function BlogPage() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
-  const [categories, setCategories] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
     fetchPosts()
-    fetchCategories()
   }, [])
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('/api/posts?limit=6&status=published')
+      const response = await fetch('/api/posts?limit=50&status=published')
       const data = await response.json()
       setPosts(data.posts || [])
     } catch (error) {
@@ -30,15 +30,10 @@ export default function HomePage() {
     }
   }
 
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/api/categories')
-      const data = await response.json()
-      setCategories(data || [])
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-    }
-  }
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (post.excerpt && post.excerpt.toLowerCase().includes(searchQuery.toLowerCase()))
+  )
 
   if (loading) {
     return (
@@ -52,77 +47,45 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b">
-        <div className="container mx-auto px-4 py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Data Science Blog</h1>
-            <p className="text-muted-foreground">Insights, tutorials, and research</p>
-          </div>
-          <div className="flex gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/blog">All Posts</Link>
-            </Button>
-            <Button asChild>
-              <Link href="/admin">Admin</Link>
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">All Posts</h1>
+              <p className="text-muted-foreground">Browse all blog articles</p>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/">← Home</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section className="py-16 bg-gradient-to-b from-background to-muted/20">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-5xl font-bold mb-4">Welcome to My Blog</h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Exploring the world of Data Science, Machine Learning, and AI through tutorials, insights, and research.
-          </p>
-          <Button size="lg" asChild>
-            <Link href="/blog">
-              Explore Articles <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
-          </Button>
-        </div>
-      </section>
-
-      {/* Categories */}
-      {categories.length > 0 && (
-        <section className="py-12 container mx-auto px-4">
-          <h3 className="text-2xl font-bold mb-6">Browse by Category</h3>
-          <div className="flex flex-wrap gap-3">
-            {categories.map((category) => (
-              <Badge
-                key={category.id}
-                variant="outline"
-                className="px-4 py-2 text-base cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                style={{ borderColor: category.color, color: category.color }}
-              >
-                {category.name}
-              </Badge>
-            ))}
+      <div className="container mx-auto px-4 py-8">
+        {/* Search */}
+        <div className="mb-8 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search posts..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
           </div>
-        </section>
-      )}
-
-      {/* Latest Posts */}
-      <section className="py-12 container mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <h3 className="text-3xl font-bold">Latest Posts</h3>
-          <Button variant="outline" asChild>
-            <Link href="/blog">View All</Link>
-          </Button>
         </div>
 
-        {posts.length === 0 ? (
+        {/* Posts Grid */}
+        {filteredPosts.length === 0 ? (
           <Card>
             <CardContent className="py-16 text-center">
-              <p className="text-muted-foreground text-lg">No posts yet. Create your first post from the admin panel!</p>
-              <Button className="mt-4" asChild>
-                <Link href="/admin/posts/new">Create Post</Link>
-              </Button>
+              <p className="text-muted-foreground text-lg">
+                {searchQuery ? 'No posts found matching your search.' : 'No posts available yet.'}
+              </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {posts.map((post) => (
+            {filteredPosts.map((post) => (
               <Card key={post.id} className="flex flex-col hover:shadow-lg transition-shadow">
                 {post.featured_image && (
                   <div className="aspect-video w-full overflow-hidden rounded-t-lg">
@@ -171,14 +134,7 @@ export default function HomePage() {
             ))}
           </div>
         )}
-      </section>
-
-      {/* Footer */}
-      <footer className="border-t mt-16">
-        <div className="container mx-auto px-4 py-8 text-center text-muted-foreground">
-          <p>© 2025 Data Science Blog. Built with Next.js and MongoDB.</p>
-        </div>
-      </footer>
+      </div>
     </div>
   )
 }
