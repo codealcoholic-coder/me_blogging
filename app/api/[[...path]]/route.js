@@ -29,10 +29,15 @@ export async function OPTIONS() {
   return handleCORS(new NextResponse(null, { status: 200 }))
 }
 
-// Simple auth check
-function isAuthenticated(request) {
+// Get user from token
+async function getUserFromToken(request) {
   const authHeader = request.headers.get('authorization')
-  return authHeader === `Bearer ${process.env.ADMIN_TOKEN || 'admin123'}`
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+
+  const token = authHeader.substring(7)
+  const db = await connectToMongo()
+  const user = await db.collection('users').findOne({ token })
+  return user
 }
 
 // Route handler function
@@ -50,23 +55,71 @@ async function handleRoute(request, { params }) {
     }
 
     // ============ AUTH ROUTES ============
+    
+    // Register new user
+    if (route === '/auth/register' && method === 'POST') {
+      const body = await request.json()
+      const { email, password, name } = body
+
+      // Check if user exists
+      const existingUser = await db.collection('users').findOne({ email })
+      if (existingUser) {
+        return handleCORS(NextResponse.json(
+          { error: "Email already registered" },
+          { status: 400 }
+        ))
+      }
+
+      const token = uuidv4()
+      const user = {
+        id: uuidv4(),
+        email,
+        password, // In production, hash this!
+        name,
+        role: 'user', // 'user' or 'admin'
+        token,
+        avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+        created_at: new Date(),
+        updated_at: new Date()
+      }
+
+      await db.collection('users').insertOne(user)
+      const { _id, password: _, ...userData } = user
+      return handleCORS(NextResponse.json({ success: true, token, user: userData }))
+    }
+
+    // Login
     if (route === '/auth/login' && method === 'POST') {
       const body = await request.json()
       const { email, password } = body
 
-      // Simple hardcoded admin (in production, use proper auth)
-      if (email === 'admin@blog.com' && password === 'admin123') {
-        return handleCORS(NextResponse.json({
-          success: true,
-          token: process.env.ADMIN_TOKEN || 'admin123',
-          user: { email, role: 'admin' }
-        }))
+      const user = await db.collection('users').findOne({ email, password })
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Invalid credentials" },
+          { status: 401 }
+        ))
       }
 
-      return handleCORS(NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      ))
+      const { _id, password: _, ...userData } = user
+      return handleCORS(NextResponse.json({
+        success: true,
+        token: user.token,
+        user: userData
+      }))
+    }
+
+    // Get current user
+    if (route === '/auth/me' && method === 'GET') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+      const { _id, password, ...userData } = user
+      return handleCORS(NextResponse.json(userData))
     }
 
     // ============ POSTS ROUTES ============
@@ -123,9 +176,10 @@ async function handleRoute(request, { params }) {
 
     // POST create new post (admin only)
     if (route === '/posts' && method === 'POST') {
-      if (!isAuthenticated(request)) {
+      const user = await getUserFromToken(request)
+      if (!user || user.role !== 'admin') {
         return handleCORS(NextResponse.json(
-          { error: "Unauthorized" },
+          { error: "Unauthorized - Admin only" },
           { status: 401 }
         ))
       }
@@ -135,6 +189,8 @@ async function handleRoute(request, { params }) {
         id: uuidv4(),
         ...body,
         slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        author_id: user.id,
+        author_name: user.name,
         view_count: 0,
         created_at: new Date(),
         updated_at: new Date(),
@@ -148,7 +204,8 @@ async function handleRoute(request, { params }) {
 
     // PUT update post (admin only)
     if (route.match(/^\/posts\/[^/]+$/) && method === 'PUT') {
-      if (!isAuthenticated(request)) {
+      const user = await getUserFromToken(request)
+      if (!user || user.role !== 'admin') {
         return handleCORS(NextResponse.json(
           { error: "Unauthorized" },
           { status: 401 }
@@ -179,7 +236,8 @@ async function handleRoute(request, { params }) {
 
     // DELETE post (admin only)
     if (route.match(/^\/posts\/[^/]+$/) && method === 'DELETE') {
-      if (!isAuthenticated(request)) {
+      const user = await getUserFromToken(request)
+      if (!user || user.role !== 'admin') {
         return handleCORS(NextResponse.json(
           { error: "Unauthorized" },
           { status: 401 }
@@ -188,6 +246,238 @@ async function handleRoute(request, { params }) {
 
       const id = path[1]
       await db.collection('posts').deleteOne({ id })
+      return handleCORS(NextResponse.json({ success: true }))
+    }
+
+    // ============ BOOKMARKS ROUTES ============
+    
+    // Get user's bookmarks
+    if (route === '/bookmarks' && method === 'GET') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const bookmarks = await db.collection('bookmarks')
+        .find({ user_id: user.id })
+        .sort({ created_at: -1 })
+        .toArray()
+
+      // Get post details for each bookmark
+      const postIds = bookmarks.map(b => b.post_id)
+      const posts = await db.collection('posts')
+        .find({ id: { $in: postIds }, status: 'published' })
+        .toArray()
+
+      const bookmarksWithPosts = bookmarks.map(bookmark => {
+        const post = posts.find(p => p.id === bookmark.post_id)
+        return {
+          ...bookmark,
+          post: post ? { _id: undefined, ...post } : null
+        }
+      }).filter(b => b.post)
+
+      return handleCORS(NextResponse.json(
+        bookmarksWithPosts.map(({ _id, ...rest }) => rest)
+      ))
+    }
+
+    // Add bookmark
+    if (route === '/bookmarks' && method === 'POST') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const body = await request.json()
+      const { post_id } = body
+
+      // Check if already bookmarked
+      const existing = await db.collection('bookmarks').findOne({
+        user_id: user.id,
+        post_id
+      })
+
+      if (existing) {
+        return handleCORS(NextResponse.json(
+          { error: "Already bookmarked" },
+          { status: 400 }
+        ))
+      }
+
+      const bookmark = {
+        id: uuidv4(),
+        user_id: user.id,
+        post_id,
+        created_at: new Date()
+      }
+
+      await db.collection('bookmarks').insertOne(bookmark)
+      const { _id, ...bookmarkData } = bookmark
+      return handleCORS(NextResponse.json(bookmarkData))
+    }
+
+    // Remove bookmark
+    if (route.match(/^\/bookmarks\/[^/]+$/) && method === 'DELETE') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const post_id = path[1]
+      await db.collection('bookmarks').deleteOne({
+        user_id: user.id,
+        post_id
+      })
+      return handleCORS(NextResponse.json({ success: true }))
+    }
+
+    // ============ HIGHLIGHTS ROUTES ============
+    
+    // Get user's highlights for a post
+    if (route.match(/^\/highlights\/post\/[^/]+$/) && method === 'GET') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json({ highlights: [] }))
+      }
+
+      const post_id = path[2]
+      const highlights = await db.collection('highlights')
+        .find({ user_id: user.id, post_id })
+        .sort({ created_at: -1 })
+        .toArray()
+
+      return handleCORS(NextResponse.json(
+        highlights.map(({ _id, ...rest }) => rest)
+      ))
+    }
+
+    // Get all user highlights
+    if (route === '/highlights' && method === 'GET') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const highlights = await db.collection('highlights')
+        .find({ user_id: user.id })
+        .sort({ created_at: -1 })
+        .toArray()
+
+      // Get post details
+      const postIds = [...new Set(highlights.map(h => h.post_id))]
+      const posts = await db.collection('posts')
+        .find({ id: { $in: postIds } })
+        .toArray()
+
+      const highlightsWithPosts = highlights.map(highlight => {
+        const post = posts.find(p => p.id === highlight.post_id)
+        return {
+          ...highlight,
+          post: post ? { id: post.id, title: post.title, slug: post.slug } : null
+        }
+      })
+
+      return handleCORS(NextResponse.json(
+        highlightsWithPosts.map(({ _id, ...rest }) => rest)
+      ))
+    }
+
+    // Add highlight
+    if (route === '/highlights' && method === 'POST') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const body = await request.json()
+      const { post_id, text, color = 'yellow' } = body
+
+      const highlight = {
+        id: uuidv4(),
+        user_id: user.id,
+        post_id,
+        text,
+        color,
+        created_at: new Date()
+      }
+
+      await db.collection('highlights').insertOne(highlight)
+      const { _id, ...highlightData } = highlight
+      return handleCORS(NextResponse.json(highlightData))
+    }
+
+    // Delete highlight
+    if (route.match(/^\/highlights\/[^/]+$/) && method === 'DELETE') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const id = path[1]
+      await db.collection('highlights').deleteOne({
+        id,
+        user_id: user.id
+      })
+      return handleCORS(NextResponse.json({ success: true }))
+    }
+
+    // ============ NOTIFICATIONS ROUTES ============
+    
+    // Get user notifications
+    if (route === '/notifications' && method === 'GET') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const notifications = await db.collection('notifications')
+        .find({ user_id: user.id })
+        .sort({ created_at: -1 })
+        .limit(50)
+        .toArray()
+
+      return handleCORS(NextResponse.json(
+        notifications.map(({ _id, ...rest }) => rest)
+      ))
+    }
+
+    // Mark notification as read
+    if (route.match(/^\/notifications\/[^/]+\/read$/) && method === 'PUT') {
+      const user = await getUserFromToken(request)
+      if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Unauthorized" },
+          { status: 401 }
+        ))
+      }
+
+      const id = path[1]
+      await db.collection('notifications').updateOne(
+        { id, user_id: user.id },
+        { $set: { read: true, read_at: new Date() } }
+      )
       return handleCORS(NextResponse.json({ success: true }))
     }
 
@@ -205,7 +495,8 @@ async function handleRoute(request, { params }) {
     }
 
     if (route === '/categories' && method === 'POST') {
-      if (!isAuthenticated(request)) {
+      const user = await getUserFromToken(request)
+      if (!user || user.role !== 'admin') {
         return handleCORS(NextResponse.json(
           { error: "Unauthorized" },
           { status: 401 }
@@ -239,7 +530,8 @@ async function handleRoute(request, { params }) {
     }
 
     if (route === '/tags' && method === 'POST') {
-      if (!isAuthenticated(request)) {
+      const user = await getUserFromToken(request)
+      if (!user || user.role !== 'admin') {
         return handleCORS(NextResponse.json(
           { error: "Unauthorized" },
           { status: 401 }
