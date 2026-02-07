@@ -351,10 +351,12 @@ export default function HomePage() {
               <div>
                 <h4 className="text-sm font-medium mb-4 tracking-wide">Topics</h4>
                 <div className="flex flex-wrap gap-2">
-                  {categories && categories.slice(0, 4).map((cat) => (
-                    <span key={cat.id} className="text-xs px-3 py-1 border border-border/50 text-muted-foreground">
-                      {cat.name}
-                    </span>
+                  {(Array.isArray(categories) ? categories : [])
+                    .slice(0, 4)
+                    .map((cat) => (
+                      <span key={cat.id} className="text-xs px-3 py-1 border border-border/50 text-muted-foreground">
+                        {cat.name}
+                      </span>
                   ))}
                 </div>
               </div>
