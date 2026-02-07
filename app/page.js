@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Calendar, Eye, Clock, BookOpen, Minus, X } from 'lucide-react'
+import { Calendar, Eye, Clock, BookOpen, Minus } from 'lucide-react'
 import { format } from 'date-fns'
 import AuthModal from '@/components/auth/AuthModal'
 
@@ -213,7 +213,7 @@ export default function HomePage() {
       )}
 
       {/* Categories */}
-      {categories.length > 0 && (
+      {categories && categories.length > 0 && (
         <section className="py-16 border-t border-border/50">
           <div className="container mx-auto px-6">
             <div className="max-w-6xl mx-auto">
