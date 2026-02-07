@@ -4,14 +4,16 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Calendar, Eye, Clock, BookOpen, Minus } from 'lucide-react'
+import { Calendar, Eye, Clock, BookOpen, Minus, X } from 'lucide-react'
 import { format } from 'date-fns'
+import AuthModal from '@/components/auth/AuthModal'
 
 export default function HomePage() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState([])
   const [user, setUser] = useState(null)
+  const [showAuthModal, setShowAuthModal] = useState(false)
 
   useEffect(() => {
     fetchPosts()
@@ -22,8 +24,18 @@ export default function HomePage() {
   const checkAuth = () => {
     const token = localStorage.getItem('auth_token')
     const userData = localStorage.getItem('user_data')
+    
     if (token && userData) {
       setUser(JSON.parse(userData))
+    } else {
+      // Show auth modal after 2 seconds if not logged in
+      setTimeout(() => {
+        const hasSeenModal = sessionStorage.getItem('auth_modal_shown')
+        if (!hasSeenModal) {
+          setShowAuthModal(true)
+          sessionStorage.setItem('auth_modal_shown', 'true')
+        }
+      }, 2000)
     }
   }
 
@@ -64,6 +76,16 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Auth Modal */}
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={(userData) => {
+          setUser(userData)
+          setShowAuthModal(false)
+        }}
+      />
+
       {/* Minimal Header */}
       <header className="border-b border-border/50">
         <div className="container mx-auto px-6 py-8 flex items-center justify-between">
@@ -87,10 +109,11 @@ export default function HomePage() {
                 {user.role === 'admin' ? 'Admin' : 'Dashboard'}
               </Link>
             ) : (
-              <Link href="/login" 
+              <button
+                onClick={() => setShowAuthModal(true)}
                 className="text-sm px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-all duration-300">
                 Sign In
-              </Link>
+              </button>
             )}
           </nav>
         </div>
@@ -119,10 +142,11 @@ export default function HomePage() {
                 Explore Articles
               </Link>
               {!user && (
-                <Link href="/register" 
+                <button
+                  onClick={() => setShowAuthModal(true)}
                   className="px-8 py-3 text-muted-foreground hover:text-foreground transition-colors">
                   Join Community
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -315,7 +339,13 @@ export default function HomePage() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li><Link href="/blog" className="hover:text-foreground transition-colors">All Articles</Link></li>
                   <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
-                  <li><Link href="/login" className="hover:text-foreground transition-colors">Sign In</Link></li>
+                  <li>
+                    <button 
+                      onClick={() => setShowAuthModal(true)}
+                      className="hover:text-foreground transition-colors">
+                      Sign In
+                    </button>
+                  </li>
                 </ul>
               </div>
               <div>
