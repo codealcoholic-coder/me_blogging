@@ -78,6 +78,9 @@ export default function HomePage() {
           </Link>
           <div className="flex gap-3">
             <Button variant="ghost" asChild>
+              <Link href="/about">About</Link>
+            </Button>
+            <Button variant="ghost" asChild>
               <Link href="/blog">Explore</Link>
             </Button>
             {user ? (
