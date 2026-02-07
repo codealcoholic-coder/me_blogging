@@ -71,15 +71,20 @@ async function handleRoute(request, { params }) {
         ))
       }
 
+      // Hash password with bcrypt
+      const hashedPassword = await bcrypt.hash(password, 12)
+      
       const token = uuidv4()
       const user = {
         id: uuidv4(),
         email,
-        password, // In production, hash this!
+        password: hashedPassword, // Store hashed password
         name,
         role: 'user', // 'user' or 'admin'
         token,
         avatar_url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`,
+        provider: 'email',
+        email_verified: true,
         created_at: new Date(),
         updated_at: new Date()
       }
@@ -94,8 +99,17 @@ async function handleRoute(request, { params }) {
       const body = await request.json()
       const { email, password } = body
 
-      const user = await db.collection('users').findOne({ email, password })
+      const user = await db.collection('users').findOne({ email })
       if (!user) {
+        return handleCORS(NextResponse.json(
+          { error: "Invalid credentials" },
+          { status: 401 }
+        ))
+      }
+
+      // Verify password with bcrypt
+      const isPasswordValid = await bcrypt.compare(password, user.password)
+      if (!isPasswordValid) {
         return handleCORS(NextResponse.json(
           { error: "Invalid credentials" },
           { status: 401 }
