@@ -102,7 +102,7 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
-user_problem_statement: "Test the Data Science Blog Platform backend API endpoints including Posts, Categories, Tags, and Auth APIs with comprehensive test scenarios"
+user_problem_statement: "Enhanced Data Science Blog Platform with Newsletter subscription, Admin management (with static credentials), Comments moderation, Upvotes, and Resend email integration for notifications"
 
 backend:
   - task: "Root API endpoint"
@@ -117,17 +117,65 @@ backend:
         agent: "testing"
         comment: "Root endpoint working correctly, returns 'Blog API Ready' message"
 
-  - task: "Authentication API"
+  - task: "Admin Authentication with Static Credentials"
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Implemented admin login with static credentials from .env (ADMIN_EMAIL, ADMIN_PASSWORD). Default: admin@blog.com/admin123"
+
+  - task: "Newsletter Subscribers API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "POST /api/subscribers - subscribe, GET /api/subscribers (admin) - list all, POST /api/subscribers/unsubscribe"
+
+  - task: "Comments API with Moderation"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET/POST /api/posts/{slug}/comments, GET/PUT/DELETE /api/admin/comments - moderation queue"
+
+  - task: "Upvotes API"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET/POST /api/posts/{id}/upvote - toggle upvote with visitor_id tracking"
+
+  - task: "Newsletter Email Notifications (Resend)"
+    implemented: true
+    working: true
+    file: "app/api/[[...path]]/route.js"
+    stuck_count: 0
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: true
-        agent: "testing"
-        comment: "Auth login working with correct credentials (admin@blog.com/admin123), correctly rejects invalid credentials with 401 status"
+        agent: "main"
+        comment: "Email notifications sent via Resend when posts are published. API key stored in .env (RESEND_API_KEY)"
 
   - task: "Posts API - List all posts"
     implemented: true
