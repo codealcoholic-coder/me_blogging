@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { FileText, Eye, Plus } from 'lucide-react'
+import { FileText, Eye, Plus, MessageSquare, Users, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function AdminPage() {
@@ -16,30 +16,61 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [stats, setStats] = useState({ total_posts: 0, total_views: 0 })
+  const [stats, setStats] = useState({ total_posts: 0, total_views: 0, pending_comments: 0, subscribers: 0 })
 
   useEffect(() => {
     checkAuth()
   }, [])
 
-  const checkAuth = () => {
+  const checkAuth = async () => {
     const token = localStorage.getItem('admin_token')
     if (token) {
-      setIsAuthenticated(true)
-      fetchStats()
+      try {
+        const response = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+        if (response.ok) {
+          setIsAuthenticated(true)
+          fetchStats(token)
+        } else {
+          localStorage.removeItem('admin_token')
+        }
+      } catch (error) {
+        localStorage.removeItem('admin_token')
+      }
     }
     setLoading(false)
   }
 
-  const fetchStats = async () => {
+  const fetchStats = async (token) => {
     try {
-      const response = await fetch('/api/posts?limit=1000&status=published')
-      const data = await response.json()
-      const posts = data.posts || []
-      const totalViews = posts.reduce((sum, post) => sum + (post.view_count || 0), 0)
+      // Fetch posts
+      const postsResponse = await fetch('/api/posts?limit=1000&all=true')
+      const postsData = await postsResponse.json()
+      const posts = postsData.posts || []
+      const publishedPosts = posts.filter(p => p.status === 'published')
+      const totalViews = publishedPosts.reduce((sum, post) => sum + (post.view_count || 0), 0)
+      
+      // Fetch pending comments
+      const commentsResponse = await fetch('/api/admin/comments?status=pending', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const commentsData = await commentsResponse.json()
+      
+      // Fetch subscribers
+      const subscribersResponse = await fetch('/api/subscribers', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const subscribersData = await subscribersResponse.json()
+      const activeSubscribers = Array.isArray(subscribersData) 
+        ? subscribersData.filter(s => s.subscribed).length 
+        : 0
+      
       setStats({
         total_posts: posts.length,
-        total_views: totalViews
+        total_views: totalViews,
+        pending_comments: Array.isArray(commentsData) ? commentsData.length : 0,
+        subscribers: activeSubscribers
       })
     } catch (error) {
       console.error('Error fetching stats:', error)
@@ -60,10 +91,10 @@ export default function AdminPage() {
       if (data.success) {
         localStorage.setItem('admin_token', data.token)
         setIsAuthenticated(true)
-        fetchStats()
+        fetchStats(data.token)
         toast.success('Logged in successfully!')
       } else {
-        toast.error('Invalid credentials')
+        toast.error(data.error || 'Invalid credentials')
       }
     } catch (error) {
       console.error('Login error:', error)
@@ -100,7 +131,7 @@ export default function AdminPage() {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@blog.com"
+                  placeholder="Enter admin email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -121,7 +152,7 @@ export default function AdminPage() {
                 Sign In
               </Button>
               <p className="text-xs text-muted-foreground text-center">
-                Default: admin@blog.com / admin123
+                Credentials are set in .env file (ADMIN_EMAIL, ADMIN_PASSWORD)
               </p>
             </form>
           </CardContent>
@@ -145,6 +176,7 @@ export default function AdminPage() {
                 <Link href="/">View Site</Link>
               </Button>
               <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
                 Logout
               </Button>
             </div>
@@ -174,12 +206,35 @@ export default function AdminPage() {
               <div className="text-2xl font-bold">{stats.total_views}</div>
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending Comments</CardTitle>
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.pending_comments}</div>
+              {stats.pending_comments > 0 && (
+                <p className="text-xs text-orange-500">Needs attention</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Subscribers</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.subscribers}</div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Actions */}
         <div className="mb-12">
           <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/admin/posts/new')}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -200,6 +255,35 @@ export default function AdminPage() {
                 </CardTitle>
                 <CardDescription>
                   View and edit existing posts
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/admin/comments')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5" />
+                  Moderate Comments
+                  {stats.pending_comments > 0 && (
+                    <span className="ml-2 px-2 py-0.5 bg-orange-500 text-white text-xs rounded-full">
+                      {stats.pending_comments}
+                    </span>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  Approve or reject comments
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => router.push('/admin/subscribers')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Subscribers
+                </CardTitle>
+                <CardDescription>
+                  View newsletter subscribers
                 </CardDescription>
               </CardHeader>
             </Card>

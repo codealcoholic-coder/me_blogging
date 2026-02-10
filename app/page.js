@@ -6,38 +6,31 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Calendar, Eye, Clock, BookOpen, Minus } from 'lucide-react'
 import { format } from 'date-fns'
-import AuthModal from '@/components/auth/AuthModal'
+import NewsletterModal from '@/components/newsletter/NewsletterModal'
 
 export default function HomePage() {
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [categories, setCategories] = useState([])
-  const [user, setUser] = useState(null)
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [showNewsletterModal, setShowNewsletterModal] = useState(false)
 
   useEffect(() => {
     fetchPosts()
     fetchCategories()
-    checkAuth()
-  }, [])
-
-  const checkAuth = () => {
-    const token = localStorage.getItem('auth_token')
-    const userData = localStorage.getItem('user_data')
     
-    if (token && userData) {
-      setUser(JSON.parse(userData))
-    } else {
-      // Show auth modal after 2 seconds if not logged in
-      setTimeout(() => {
-        const hasSeenModal = sessionStorage.getItem('auth_modal_shown')
-        if (!hasSeenModal) {
-          setShowAuthModal(true)
-          sessionStorage.setItem('auth_modal_shown', 'true')
-        }
-      }, 2000)
+    // Show newsletter popup after 5 seconds if not already subscribed
+    const hasSubscribed = localStorage.getItem('newsletter_subscribed')
+    const hasSeenModal = sessionStorage.getItem('newsletter_modal_shown')
+    
+    if (!hasSubscribed && !hasSeenModal) {
+      const timer = setTimeout(() => {
+        setShowNewsletterModal(true)
+        sessionStorage.setItem('newsletter_modal_shown', 'true')
+      }, 5000)
+      
+      return () => clearTimeout(timer)
     }
-  }
+  }, [])
 
   const fetchPosts = async () => {
     try {
@@ -76,14 +69,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Auth Modal */}
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={(userData) => {
-          setUser(userData)
-          setShowAuthModal(false)
-        }}
+      {/* Newsletter Modal */}
+      <NewsletterModal 
+        isOpen={showNewsletterModal} 
+        onClose={() => setShowNewsletterModal(false)}
       />
 
       {/* Minimal Header */}
@@ -103,18 +92,11 @@ export default function HomePage() {
           <nav className="flex items-center gap-8">
             <Link href="/about" className="text-sm hover:text-foreground/60 transition-colors">About</Link>
             <Link href="/blog" className="text-sm hover:text-foreground/60 transition-colors">Archive</Link>
-            {user ? (
-              <Link href={user.role === 'admin' ? '/admin' : '/dashboard'} 
-                className="text-sm px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-all duration-300">
-                {user.role === 'admin' ? 'Admin' : 'Dashboard'}
-              </Link>
-            ) : (
-              <button
-                onClick={() => setShowAuthModal(true)}
-                className="text-sm px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-all duration-300">
-                Sign In
-              </button>
-            )}
+            <button
+              onClick={() => setShowNewsletterModal(true)}
+              className="text-sm px-4 py-2 border border-foreground hover:bg-foreground hover:text-background transition-all duration-300">
+              Subscribe
+            </button>
           </nav>
         </div>
       </header>
@@ -141,13 +123,11 @@ export default function HomePage() {
                 className="px-8 py-3 border border-foreground hover:bg-foreground hover:text-background transition-all duration-300">
                 Explore Articles
               </Link>
-              {!user && (
-                <button
-                  onClick={() => setShowAuthModal(true)}
-                  className="px-8 py-3 text-muted-foreground hover:text-foreground transition-colors">
-                  Join Community
-                </button>
-              )}
+              <button
+                onClick={() => setShowNewsletterModal(true)}
+                className="px-8 py-3 text-muted-foreground hover:text-foreground transition-colors">
+                Get Updates
+              </button>
             </div>
           </div>
         </div>
@@ -341,9 +321,9 @@ export default function HomePage() {
                   <li><Link href="/about" className="hover:text-foreground transition-colors">About</Link></li>
                   <li>
                     <button 
-                      onClick={() => setShowAuthModal(true)}
+                      onClick={() => setShowNewsletterModal(true)}
                       className="hover:text-foreground transition-colors">
-                      Sign In
+                      Subscribe
                     </button>
                   </li>
                 </ul>
