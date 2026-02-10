@@ -123,11 +123,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "Implemented admin login with static credentials from .env (ADMIN_EMAIL, ADMIN_PASSWORD). Default: admin@blog.com/admin123"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Admin login working correctly. Valid credentials (admin@blog.com/admin123) return token and user data. Invalid credentials properly rejected with 401. GET /api/auth/me endpoint working with Bearer token authentication."
 
   - task: "Newsletter Subscribers API"
     implemented: true
