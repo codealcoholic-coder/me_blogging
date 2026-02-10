@@ -2,7 +2,7 @@ import './globals.css'
 import { Toaster } from 'sonner'
 
 export const metadata = {
-  title: 'Data Science Blog',
+  title: 'Garden of Thoughts (AI/ML Insights and Tutorials)',
   description: 'A modern blog platform for Data Science insights and tutorials',
 }
 

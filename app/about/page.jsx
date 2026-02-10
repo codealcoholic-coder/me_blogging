@@ -20,7 +20,7 @@ export default function AboutPage() {
   const socialLinks = {
     instagram: 'https://instagram.com/yourprofile',
     youtube: 'https://youtube.com/@yourchannel',
-    linkedin: 'https://linkedin.com/in/yourprofile',
+    linkedin: 'https://linkedin.com/in/shishir.naresh',
     email: 'contact@yourdomain.com'
   }
 
@@ -34,7 +34,10 @@ export default function AboutPage() {
     'Computer Vision',
     'NLP',
     'SQL',
-    'Cloud Computing'
+    'Cloud Computing',
+    'Agentic AI',
+    'LLMs',
+    'RAG Development'
   ]
 
   const stats = [
@@ -55,7 +58,7 @@ export default function AboutPage() {
                 <BookOpen className="h-4 w-4" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold tracking-tight">思考の庭</h1>
+                <h1 className="text-lg font-semibold tracking-tight">विचारोद्यानम्</h1>
                 <p className="text-xs text-muted-foreground tracking-wide">Garden of Thoughts</p>
               </div>
             </div>
@@ -74,7 +77,7 @@ export default function AboutPage() {
             <div className="space-y-4">
               <p className="text-sm tracking-[0.3em] text-muted-foreground uppercase">About</p>
               <h2 className="text-4xl md:text-6xl font-serif font-semibold tracking-tight leading-tight">
-                [Your Name]
+                Shishir K. Naresh
               </h2>
               <div className="zen-divider"></div>
               <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mx-auto">
@@ -85,11 +88,22 @@ export default function AboutPage() {
             </div>
 
             {/* Profile Avatar */}
-            <div className="my-12">
+            {/* <div className="my-12">
               <div className="w-32 h-32 mx-auto border-2 border-foreground/20 flex items-center justify-center text-4xl font-serif">
-                YN
+                S.K.N
+              </div>
+            </div> */}
+            {/* Profile Avatar */}
+            <div className="my-12">
+              <div className="w-32 h-32 mx-auto border-2 border-foreground/20 flex items-center justify-center overflow-hidden rounded-full">
+                <img
+                  src="/avatar.png"
+                  alt="Profile avatar"
+                  className="w-full h-full object-cover"
+                />
               </div>
             </div>
+
 
             {/* Social Links */}
             <div className="flex gap-6 justify-center pt-4">

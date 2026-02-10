@@ -68,7 +68,7 @@ export default function HomePage() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-2 border-foreground/20 border-t-foreground rounded-full animate-spin"></div>
-          <p className="text-sm text-muted-foreground">静かに読み込み中...</p>
+          <p className="text-sm text-muted-foreground">शान्ततया सञ्चीयते…...</p>
         </div>
       </div>
     )
@@ -95,7 +95,7 @@ export default function HomePage() {
                 <BookOpen className="h-4 w-4" />
               </div>
               <div>
-                <h1 className="text-lg font-semibold tracking-tight">思考の庭</h1>
+                <h1 className="text-lg font-semibold tracking-tight">विचारोद्यानम्</h1>
                 <p className="text-xs text-muted-foreground tracking-wide">Garden of Thoughts</p>
               </div>
             </div>
