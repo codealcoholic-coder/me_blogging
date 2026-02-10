@@ -168,11 +168,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "GET/POST /api/posts/{id}/upvote - toggle upvote with visitor_id tracking"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Upvotes API working perfectly. POST /api/posts/{id}/upvote successfully adds upvote with visitor_id tracking, GET /api/posts/{id}/upvote?visitor_id={id} returns correct upvote status and count, POST again toggles upvote (removes it). Visitor-based upvote tracking working correctly."
 
   - task: "Newsletter Email Notifications (Resend)"
     implemented: true
