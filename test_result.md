@@ -177,19 +177,19 @@ backend:
         agent: "main"
         comment: "Email notifications sent via Resend when posts are published. API key stored in .env (RESEND_API_KEY)"
 
-  - task: "Posts API - List all posts"
+  - task: "Posts API - CRUD operations"
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: false
+    needs_retesting: true
     status_history:
       - working: true
-        agent: "testing"
-        comment: "GET /api/posts working correctly, returns posts with all required fields (id, title, slug, content, category, tags, status)"
+        agent: "main"
+        comment: "All posts CRUD operations with admin auth, includes upvote counts"
 
-  - task: "Posts API - Category filtering"
+  - task: "Categories API"
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js"
@@ -199,9 +199,9 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "Category filtering working correctly, returns only posts matching specified category"
+        comment: "GET/POST /api/categories working correctly"
 
-  - task: "Posts API - Pagination"
+  - task: "Tags API"
     implemented: true
     working: true
     file: "app/api/[[...path]]/route.js"
@@ -211,115 +211,7 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "Pagination with limit and skip parameters working correctly"
-
-  - task: "Posts API - Get single post by slug"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "GET /api/posts/[slug] working correctly, returns specific post and increments view count. Correctly returns 404 for non-existent posts"
-
-  - task: "Posts API - View count increment"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "View count increments correctly when accessing posts by slug"
-
-  - task: "Posts API - Create post (protected)"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "POST /api/posts correctly requires authentication, rejects unauthorized requests with 401, creates posts successfully with valid auth token"
-
-  - task: "Posts API - Update post (protected)"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "PUT /api/posts/[id] working correctly with authentication, updates post data successfully"
-
-  - task: "Posts API - Delete post (protected)"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "DELETE /api/posts/[id] working correctly with authentication, deletes posts successfully"
-
-  - task: "Categories API - List categories"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "GET /api/categories working correctly, returns categories sorted by sort_order"
-
-  - task: "Categories API - Create category (protected)"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "POST /api/categories working correctly with authentication, creates categories successfully"
-
-  - task: "Tags API - List tags"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "GET /api/tags working correctly, returns tags with all required fields (id, name, slug)"
-
-  - task: "Tags API - Create tag (protected)"
-    implemented: true
-    working: true
-    file: "app/api/[[...path]]/route.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "testing"
-        comment: "POST /api/tags working correctly with authentication, creates tags successfully"
+        comment: "GET/POST /api/tags working correctly"
 
 frontend:
   # Frontend testing not performed as per instructions
