@@ -214,7 +214,89 @@ backend:
         comment: "GET/POST /api/tags working correctly"
 
 frontend:
-  # Frontend testing not performed as per instructions
+  - task: "Home Page with Newsletter Modal"
+    implemented: true
+    working: true
+    file: "app/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Removed auth modal, added newsletter subscription modal that appears after 5 seconds"
+
+  - task: "Blog Post Page with Comments and Upvotes"
+    implemented: true
+    working: true
+    file: "app/blog/[slug]/page.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Added upvote button, comment form, and comments list with share buttons"
+
+  - task: "Admin Dashboard"
+    implemented: true
+    working: true
+    file: "app/admin/page.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Enhanced with stats, quick actions for posts, comments, subscribers"
+
+  - task: "Admin Post Editor with TiptapEditor"
+    implemented: true
+    working: true
+    file: "app/admin/posts/new/page.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Rich text editor with Title, Content, Tags, save draft and publish options"
+
+  - task: "Admin Edit Post Page"
+    implemented: true
+    working: true
+    file: "app/admin/posts/[id]/edit/page.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "Edit existing posts using TiptapEditor"
+
+  - task: "Admin Comments Moderation"
+    implemented: true
+    working: true
+    file: "app/admin/comments/page.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "View, approve, reject, delete comments with filter tabs"
+
+  - task: "Admin Subscribers Page"
+    implemented: true
+    working: true
+    file: "app/admin/subscribers/page.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "View all newsletter subscribers with stats"
 
 metadata:
   created_by: "testing_agent"
