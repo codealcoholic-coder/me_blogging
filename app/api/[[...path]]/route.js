@@ -1,39 +1,109 @@
+
+// // MongoDB connection
+// let client
+// let db
+
+// async function connectToMongo() {
+//   console.log("Entered connectToMongo")
+
+//   if (!process.env.MONGO_URL) {
+//     throw new Error("MONGO_URL missing in env")
+//   }
+
+//   if (!process.env.DB_NAME) {
+//     throw new Error("DB_NAME missing in env")
+//   }
+
+//   if (!client) {
+//     console.log("Creating Mongo client")
+
+//     client = new MongoClient(process.env.MONGO_URL)
+//     await client.connect()
+
+//     console.log("✅ Mongo connected")
+//   }
+
+//   if (!db) {
+//     db = client.db(process.env.DB_NAME)
+//     console.log("✅ DB selected:", db.databaseName)
+//   }
+
+//   return db
+// }
+
+
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 
-// MongoDB connection
-let client
-let db
+// MongoDB connection with proper caching for serverless
+const MONGO_URL = process.env.MONGO_URL
+const DB_NAME = process.env.DB_NAME
+
+if (!MONGO_URL) {
+  throw new Error('Please define MONGO_URL environment variable')
+}
+
+if (!DB_NAME) {
+  throw new Error('Please define DB_NAME environment variable')
+}
+
+// Use global to preserve connection across hot reloads in development
+let cached = global.mongo
+
+if (!cached) {
+  cached = global.mongo = { conn: null, promise: null }
+}
 
 async function connectToMongo() {
-  console.log("Entered connectToMongo")
-
-  if (!process.env.MONGO_URL) {
-    throw new Error("MONGO_URL missing in env")
+  // If we have a cached connection, verify it's still alive
+  if (cached.conn) {
+    try {
+      // Ping to verify connection is still alive
+      await cached.conn.db(DB_NAME).command({ ping: 1 })
+      return cached.conn.db(DB_NAME)
+    } catch (e) {
+      // Connection is stale, reset cache
+      console.log('Connection stale, reconnecting...')
+      cached.conn = null
+      cached.promise = null
+    }
   }
 
-  if (!process.env.DB_NAME) {
-    throw new Error("DB_NAME missing in env")
+  // If no connection promise exists, create one
+  if (!cached.promise) {
+    const opts = {
+      maxPoolSize: 10,
+      minPoolSize: 5,
+      maxIdleTimeMS: 60000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+      // Important for serverless
+      bufferCommands: false,
+    }
+
+    cached.promise = MongoClient.connect(MONGO_URL, opts)
+      .then((client) => {
+        console.log('✅ New MongoDB connection established')
+        return client
+      })
+      .catch((err) => {
+        cached.promise = null
+        throw err
+      })
   }
 
-  if (!client) {
-    console.log("Creating Mongo client")
-
-    client = new MongoClient(process.env.MONGO_URL)
-    await client.connect()
-
-    console.log("✅ Mongo connected")
+  try {
+    cached.conn = await cached.promise
+  } catch (e) {
+    cached.promise = null
+    throw e
   }
 
-  if (!db) {
-    db = client.db(process.env.DB_NAME)
-    console.log("✅ DB selected:", db.databaseName)
-  }
-
-  return db
+  return cached.conn.db(DB_NAME)
 }
+
 
 // Helper function to handle CORS
 function handleCORS(response) {
