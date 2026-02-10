@@ -1,37 +1,3 @@
-
-// // MongoDB connection
-// let client
-// let db
-
-// async function connectToMongo() {
-//   console.log("Entered connectToMongo")
-
-//   if (!process.env.MONGO_URL) {
-//     throw new Error("MONGO_URL missing in env")
-//   }
-
-//   if (!process.env.DB_NAME) {
-//     throw new Error("DB_NAME missing in env")
-//   }
-
-//   if (!client) {
-//     console.log("Creating Mongo client")
-
-//     client = new MongoClient(process.env.MONGO_URL)
-//     await client.connect()
-
-//     console.log("✅ Mongo connected")
-//   }
-
-//   if (!db) {
-//     db = client.db(process.env.DB_NAME)
-//     console.log("✅ DB selected:", db.databaseName)
-//   }
-
-//   return db
-// }
-
-
 import { MongoClient } from 'mongodb'
 import { v4 as uuidv4 } from 'uuid'
 import { NextResponse } from 'next/server'
@@ -74,13 +40,23 @@ async function connectToMongo() {
   // If no connection promise exists, create one
   if (!cached.promise) {
     const opts = {
+      // Connection Pool Settings
       maxPoolSize: 10,
-      minPoolSize: 5,
+      minPoolSize: 2,
       maxIdleTimeMS: 60000,
+      waitQueueTimeoutMS: 2500,
+      
+      // Connection Settings
       serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      // Important for serverless
-      bufferCommands: false,
+      connectTimeoutMS: 10000,
+      
+      // Monitoring
+      heartbeatFrequencyMS: 10000,
+      
+      // For serverless environments
+      retryWrites: true,
+      w: 'majority',
     }
 
     cached.promise = MongoClient.connect(MONGO_URL, opts)
@@ -103,7 +79,6 @@ async function connectToMongo() {
 
   return cached.conn.db(DB_NAME)
 }
-
 
 // Helper function to handle CORS
 function handleCORS(response) {
@@ -129,6 +104,8 @@ async function getUserFromToken(request) {
   const user = await db.collection('users').findOne({ token })
   return user
 }
+
+// Rest of your route handler code remains exactly the same...
 
 // Route handler function
 async function handleRoute(request, { params }) {
