@@ -138,11 +138,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "POST /api/subscribers - subscribe, GET /api/subscribers (admin) - list all, POST /api/subscribers/unsubscribe"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Newsletter API working perfectly. POST /api/subscribers successfully subscribes emails, correctly rejects duplicates with 400 error, GET /api/subscribers (admin auth) retrieves subscriber list, POST /api/subscribers/unsubscribe works correctly."
 
   - task: "Comments API with Moderation"
     implemented: true
