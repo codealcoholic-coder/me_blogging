@@ -306,11 +306,14 @@ metadata:
 
 test_plan:
   current_focus:
-    - "All backend API endpoints tested successfully"
+    - "Admin Authentication with Static Credentials"
+    - "Newsletter Subscribers API"
+    - "Comments API with Moderation"
+    - "Upvotes API"
   stuck_tasks: []
-  test_all: true
+  test_all: false
   test_priority: "high_first"
 
 agent_communication:
-  - agent: "testing"
-    message: "Comprehensive backend API testing completed successfully. All 16 test cases passed with 100% success rate. Database seeded with sample data. All API endpoints (Posts, Categories, Tags, Auth) are working correctly with proper authentication, CRUD operations, filtering, pagination, and error handling."
+  - agent: "main"
+    message: "Implemented all requested features: 1) Removed login/signup popup, replaced with newsletter subscription modal. 2) Admin uses static credentials from .env (ADMIN_EMAIL, ADMIN_PASSWORD). 3) Admin can create/edit/delete posts with TiptapEditor. 4) Publishing posts sends email notifications via Resend. 5) Blog posts have upvote and comment functionality. 6) Admin has comments moderation and subscribers view. Ready for backend testing of new APIs."
