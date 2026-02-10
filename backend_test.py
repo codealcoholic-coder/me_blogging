@@ -1,566 +1,461 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Data Science Blog Platform
-Tests all API endpoints including authentication, CRUD operations, and data validation.
+Backend API Testing for Enhanced Data Science Blog Platform
+Tests all the new features: Admin Auth, Newsletter, Comments, Upvotes, Posts
 """
 
 import requests
 import json
-import sys
-import os
+import uuid
+import time
 from datetime import datetime
 
-# Get base URL from environment
-BASE_URL = os.getenv('NEXT_PUBLIC_BASE_URL', 'https://edit-publish-2.preview.emergentagent.com')
-API_BASE = f"{BASE_URL}/api"
-
-# Test credentials
+# Configuration
+BASE_URL = "http://localhost:3000/api"
 ADMIN_EMAIL = "admin@blog.com"
 ADMIN_PASSWORD = "admin123"
-ADMIN_TOKEN = "admin123"
 
-class BlogAPITester:
-    def __init__(self):
-        self.auth_token = None
-        self.test_results = []
-        self.failed_tests = []
+# Global variables to store test data
+admin_token = None
+test_post_id = None
+test_post_slug = None
+test_comment_id = None
+test_visitor_id = str(uuid.uuid4())
+
+def log_test(test_name, success, details=""):
+    """Log test results"""
+    status = "✅ PASS" if success else "❌ FAIL"
+    print(f"{status} {test_name}")
+    if details:
+        print(f"   Details: {details}")
+    print()
+
+def make_request(method, endpoint, data=None, headers=None, expected_status=200):
+    """Make HTTP request with error handling"""
+    url = f"{BASE_URL}{endpoint}"
+    
+    try:
+        if method.upper() == 'GET':
+            response = requests.get(url, headers=headers, timeout=10)
+        elif method.upper() == 'POST':
+            response = requests.post(url, json=data, headers=headers, timeout=10)
+        elif method.upper() == 'PUT':
+            response = requests.put(url, json=data, headers=headers, timeout=10)
+        elif method.upper() == 'DELETE':
+            response = requests.delete(url, headers=headers, timeout=10)
+        else:
+            raise ValueError(f"Unsupported method: {method}")
         
-    def log_test(self, test_name, success, message="", response_data=None):
-        """Log test results"""
-        status = "✅ PASS" if success else "❌ FAIL"
-        print(f"{status}: {test_name}")
-        if message:
-            print(f"   {message}")
-        if response_data and not success:
-            print(f"   Response: {response_data}")
-        print()
+        print(f"Request: {method} {url}")
+        print(f"Status: {response.status_code}")
+        if data:
+            print(f"Data: {json.dumps(data, indent=2)}")
         
-        self.test_results.append({
-            'test': test_name,
-            'success': success,
-            'message': message,
-            'timestamp': datetime.now().isoformat()
-        })
-        
-        if not success:
-            self.failed_tests.append(test_name)
-    
-    def test_root_endpoint(self):
-        """Test root API endpoint"""
-        try:
-            response = requests.get(f"{API_BASE}/")
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('message') == "Blog API Ready":
-                    self.log_test("Root endpoint", True, "API is ready")
-                    return True
-                else:
-                    self.log_test("Root endpoint", False, f"Unexpected response: {data}")
-                    return False
-            else:
-                self.log_test("Root endpoint", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Root endpoint", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_auth_login(self):
-        """Test authentication login"""
-        try:
-            payload = {
-                "email": ADMIN_EMAIL,
-                "password": ADMIN_PASSWORD
-            }
-            response = requests.post(f"{API_BASE}/auth/login", json=payload)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('success') and data.get('token'):
-                    self.auth_token = data['token']
-                    self.log_test("Auth login", True, f"Token received: {self.auth_token}")
-                    return True
-                else:
-                    self.log_test("Auth login", False, f"Invalid response structure: {data}")
-                    return False
-            else:
-                self.log_test("Auth login", False, f"Status code: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            self.log_test("Auth login", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_auth_invalid_credentials(self):
-        """Test authentication with invalid credentials"""
-        try:
-            payload = {
-                "email": "wrong@email.com",
-                "password": "wrongpassword"
-            }
-            response = requests.post(f"{API_BASE}/auth/login", json=payload)
-            
-            if response.status_code == 401:
-                data = response.json()
-                if data.get('error') == "Invalid credentials":
-                    self.log_test("Auth invalid credentials", True, "Correctly rejected invalid credentials")
-                    return True
-                else:
-                    self.log_test("Auth invalid credentials", False, f"Unexpected error message: {data}")
-                    return False
-            else:
-                self.log_test("Auth invalid credentials", False, f"Expected 401, got {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Auth invalid credentials", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_all_posts(self):
-        """Test GET /api/posts - list all published posts"""
-        try:
-            response = requests.get(f"{API_BASE}/posts")
-            
-            if response.status_code == 200:
-                data = response.json()
-                if 'posts' in data and 'total' in data:
-                    posts = data['posts']
-                    total = data['total']
-                    self.log_test("Get all posts", True, f"Retrieved {len(posts)} posts, total: {total}")
-                    
-                    # Verify posts have required fields
-                    if posts:
-                        post = posts[0]
-                        required_fields = ['id', 'title', 'slug', 'content', 'category', 'tags', 'status']
-                        missing_fields = [field for field in required_fields if field not in post]
-                        if missing_fields:
-                            self.log_test("Post fields validation", False, f"Missing fields: {missing_fields}")
-                        else:
-                            self.log_test("Post fields validation", True, "All required fields present")
-                    
-                    return True
-                else:
-                    self.log_test("Get all posts", False, f"Invalid response structure: {data}")
-                    return False
-            else:
-                self.log_test("Get all posts", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Get all posts", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_posts_with_filters(self):
-        """Test GET /api/posts with category filter"""
-        try:
-            # Test with category filter
-            response = requests.get(f"{API_BASE}/posts?category=Deep Learning")
-            
-            if response.status_code == 200:
-                data = response.json()
-                posts = data.get('posts', [])
-                
-                # Verify all posts have the correct category
-                if posts:
-                    correct_category = all(post.get('category') == 'Deep Learning' for post in posts)
-                    if correct_category:
-                        self.log_test("Posts category filter", True, f"Found {len(posts)} posts in 'Deep Learning' category")
-                    else:
-                        self.log_test("Posts category filter", False, "Some posts have incorrect category")
-                else:
-                    self.log_test("Posts category filter", True, "No posts found for category (valid result)")
-                
-                return True
-            else:
-                self.log_test("Posts category filter", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Posts category filter", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_posts_with_pagination(self):
-        """Test GET /api/posts with limit and skip parameters"""
-        try:
-            response = requests.get(f"{API_BASE}/posts?limit=2&skip=0")
-            
-            if response.status_code == 200:
-                data = response.json()
-                posts = data.get('posts', [])
-                limit = data.get('limit')
-                skip = data.get('skip')
-                
-                if len(posts) <= 2 and limit == 2 and skip == 0:
-                    self.log_test("Posts pagination", True, f"Pagination working: {len(posts)} posts returned")
-                    return True
-                else:
-                    self.log_test("Posts pagination", False, f"Pagination issue: posts={len(posts)}, limit={limit}, skip={skip}")
-                    return False
-            else:
-                self.log_test("Posts pagination", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Posts pagination", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_single_post(self):
-        """Test GET /api/posts/[slug] - get specific post by slug"""
-        try:
-            slug = "introduction-to-neural-networks"
-            response = requests.get(f"{API_BASE}/posts/{slug}")
-            
-            if response.status_code == 200:
-                post = response.json()
-                if post.get('slug') == slug:
-                    self.log_test("Get single post", True, f"Retrieved post: {post.get('title')}")
-                    
-                    # Test view count increment by making another request
-                    initial_views = post.get('view_count', 0)
-                    response2 = requests.get(f"{API_BASE}/posts/{slug}")
-                    if response2.status_code == 200:
-                        post2 = response2.json()
-                        new_views = post2.get('view_count', 0)
-                        if new_views > initial_views:
-                            self.log_test("View count increment", True, f"Views: {initial_views} → {new_views}")
-                        else:
-                            self.log_test("View count increment", False, f"Views didn't increment: {initial_views} → {new_views}")
-                    
-                    return True
-                else:
-                    self.log_test("Get single post", False, f"Wrong slug returned: {post.get('slug')}")
-                    return False
-            else:
-                self.log_test("Get single post", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Get single post", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_nonexistent_post(self):
-        """Test GET /api/posts/[slug] with non-existent slug"""
-        try:
-            response = requests.get(f"{API_BASE}/posts/non-existent-post")
-            
-            if response.status_code == 404:
-                data = response.json()
-                if data.get('error') == "Post not found":
-                    self.log_test("Get nonexistent post", True, "Correctly returned 404 for non-existent post")
-                    return True
-                else:
-                    self.log_test("Get nonexistent post", False, f"Wrong error message: {data}")
-                    return False
-            else:
-                self.log_test("Get nonexistent post", False, f"Expected 404, got {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Get nonexistent post", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_create_post_without_auth(self):
-        """Test POST /api/posts without authentication"""
-        try:
-            payload = {
-                "title": "Test Post",
-                "content": "Test content",
-                "category": "Machine Learning",
-                "tags": ["Test"],
-                "status": "published"
-            }
-            response = requests.post(f"{API_BASE}/posts", json=payload)
-            
-            if response.status_code == 401:
-                data = response.json()
-                if data.get('error') == "Unauthorized":
-                    self.log_test("Create post without auth", True, "Correctly rejected unauthorized request")
-                    return True
-                else:
-                    self.log_test("Create post without auth", False, f"Wrong error message: {data}")
-                    return False
-            else:
-                self.log_test("Create post without auth", False, f"Expected 401, got {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Create post without auth", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_create_post_with_auth(self):
-        """Test POST /api/posts with authentication"""
-        if not self.auth_token:
-            self.log_test("Create post with auth", False, "No auth token available")
-            return False
-        
-        try:
-            payload = {
-                "title": "Test Post from API",
-                "content": "<p>This is a test post created via API</p>",
-                "excerpt": "Test excerpt",
-                "category": "Machine Learning",
-                "tags": ["Test", "API"],
-                "status": "published",
-                "reading_time_minutes": 5
-            }
-            headers = {"Authorization": f"Bearer {self.auth_token}"}
-            response = requests.post(f"{API_BASE}/posts", json=payload, headers=headers)
-            
-            if response.status_code == 200:
-                post = response.json()
-                if post.get('title') == payload['title']:
-                    self.log_test("Create post with auth", True, f"Created post: {post.get('id')}")
-                    # Store the post ID for later tests
-                    self.test_post_id = post.get('id')
-                    return True
-                else:
-                    self.log_test("Create post with auth", False, f"Post data mismatch: {post}")
-                    return False
-            else:
-                self.log_test("Create post with auth", False, f"Status code: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            self.log_test("Create post with auth", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_update_post(self):
-        """Test PUT /api/posts/[id] - update post"""
-        if not hasattr(self, 'test_post_id') or not self.test_post_id:
-            self.log_test("Update post", False, "No test post ID available")
-            return False
-        
-        if not self.auth_token:
-            self.log_test("Update post", False, "No auth token available")
-            return False
-        
-        try:
-            payload = {
-                "title": "Updated Test Post from API",
-                "content": "<p>This post has been updated via API</p>",
-                "status": "published"
-            }
-            headers = {"Authorization": f"Bearer {self.auth_token}"}
-            response = requests.put(f"{API_BASE}/posts/{self.test_post_id}", json=payload, headers=headers)
-            
-            if response.status_code == 200:
-                post = response.json()
-                if post.get('title') == payload['title']:
-                    self.log_test("Update post", True, f"Updated post: {post.get('id')}")
-                    return True
-                else:
-                    self.log_test("Update post", False, f"Post not updated correctly: {post}")
-                    return False
-            else:
-                self.log_test("Update post", False, f"Status code: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            self.log_test("Update post", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_delete_post(self):
-        """Test DELETE /api/posts/[id] - delete post"""
-        if not hasattr(self, 'test_post_id') or not self.test_post_id:
-            self.log_test("Delete post", False, "No test post ID available")
-            return False
-        
-        if not self.auth_token:
-            self.log_test("Delete post", False, "No auth token available")
-            return False
-        
-        try:
-            headers = {"Authorization": f"Bearer {self.auth_token}"}
-            response = requests.delete(f"{API_BASE}/posts/{self.test_post_id}", headers=headers)
-            
-            if response.status_code == 200:
-                data = response.json()
-                if data.get('success'):
-                    self.log_test("Delete post", True, f"Deleted post: {self.test_post_id}")
-                    return True
-                else:
-                    self.log_test("Delete post", False, f"Delete not confirmed: {data}")
-                    return False
-            else:
-                self.log_test("Delete post", False, f"Status code: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            self.log_test("Delete post", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_categories(self):
-        """Test GET /api/categories - list all categories"""
-        try:
-            response = requests.get(f"{API_BASE}/categories")
-            
-            if response.status_code == 200:
-                categories = response.json()
-                if isinstance(categories, list) and len(categories) > 0:
-                    # Check if categories are sorted by sort_order
-                    sort_orders = [cat.get('sort_order', 0) for cat in categories]
-                    is_sorted = sort_orders == sorted(sort_orders)
-                    
-                    self.log_test("Get categories", True, f"Retrieved {len(categories)} categories")
-                    if is_sorted:
-                        self.log_test("Categories sorting", True, "Categories are sorted by sort_order")
-                    else:
-                        self.log_test("Categories sorting", False, f"Categories not sorted: {sort_orders}")
-                    
-                    return True
-                else:
-                    self.log_test("Get categories", False, f"Invalid categories response: {categories}")
-                    return False
-            else:
-                self.log_test("Get categories", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Get categories", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_create_category(self):
-        """Test POST /api/categories - create new category"""
-        if not self.auth_token:
-            self.log_test("Create category", False, "No auth token available")
-            return False
-        
-        try:
-            payload = {
-                "name": "Test Category",
-                "description": "A test category created via API",
-                "color": "#FF5733",
-                "icon": "test",
-                "sort_order": 99
-            }
-            headers = {"Authorization": f"Bearer {self.auth_token}"}
-            response = requests.post(f"{API_BASE}/categories", json=payload, headers=headers)
-            
-            if response.status_code == 200:
-                category = response.json()
-                if category.get('name') == payload['name']:
-                    self.log_test("Create category", True, f"Created category: {category.get('id')}")
-                    return True
-                else:
-                    self.log_test("Create category", False, f"Category data mismatch: {category}")
-                    return False
-            else:
-                self.log_test("Create category", False, f"Status code: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            self.log_test("Create category", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_get_tags(self):
-        """Test GET /api/tags - list all tags"""
-        try:
-            response = requests.get(f"{API_BASE}/tags")
-            
-            if response.status_code == 200:
-                tags = response.json()
-                if isinstance(tags, list) and len(tags) > 0:
-                    self.log_test("Get tags", True, f"Retrieved {len(tags)} tags")
-                    
-                    # Check if tags have required fields
-                    if tags:
-                        tag = tags[0]
-                        required_fields = ['id', 'name', 'slug']
-                        missing_fields = [field for field in required_fields if field not in tag]
-                        if missing_fields:
-                            self.log_test("Tag fields validation", False, f"Missing fields: {missing_fields}")
-                        else:
-                            self.log_test("Tag fields validation", True, "All required tag fields present")
-                    
-                    return True
-                else:
-                    self.log_test("Get tags", False, f"Invalid tags response: {tags}")
-                    return False
-            else:
-                self.log_test("Get tags", False, f"Status code: {response.status_code}")
-                return False
-        except Exception as e:
-            self.log_test("Get tags", False, f"Exception: {str(e)}")
-            return False
-    
-    def test_create_tag(self):
-        """Test POST /api/tags - create new tag"""
-        if not self.auth_token:
-            self.log_test("Create tag", False, "No auth token available")
-            return False
-        
-        try:
-            payload = {
-                "name": "Test Tag",
-                "description": "A test tag created via API"
-            }
-            headers = {"Authorization": f"Bearer {self.auth_token}"}
-            response = requests.post(f"{API_BASE}/tags", json=payload, headers=headers)
-            
-            if response.status_code == 200:
-                tag = response.json()
-                if tag.get('name') == payload['name']:
-                    self.log_test("Create tag", True, f"Created tag: {tag.get('id')}")
-                    return True
-                else:
-                    self.log_test("Create tag", False, f"Tag data mismatch: {tag}")
-                    return False
-            else:
-                self.log_test("Create tag", False, f"Status code: {response.status_code}, Response: {response.text}")
-                return False
-        except Exception as e:
-            self.log_test("Create tag", False, f"Exception: {str(e)}")
-            return False
-    
-    def run_all_tests(self):
-        """Run all backend API tests"""
-        print("=" * 60)
-        print("BACKEND API TESTING - Data Science Blog Platform")
-        print("=" * 60)
-        print(f"Testing API at: {API_BASE}")
-        print()
-        
-        # Test sequence
-        tests = [
-            self.test_root_endpoint,
-            self.test_auth_login,
-            self.test_auth_invalid_credentials,
-            self.test_get_all_posts,
-            self.test_get_posts_with_filters,
-            self.test_get_posts_with_pagination,
-            self.test_get_single_post,
-            self.test_get_nonexistent_post,
-            self.test_create_post_without_auth,
-            self.test_create_post_with_auth,
-            self.test_update_post,
-            self.test_delete_post,
-            self.test_get_categories,
-            self.test_create_category,
-            self.test_get_tags,
-            self.test_create_tag
-        ]
-        
-        passed = 0
-        total = len(tests)
-        
-        for test in tests:
+        if response.status_code == expected_status:
             try:
-                if test():
-                    passed += 1
-            except Exception as e:
-                print(f"❌ FAIL: {test.__name__} - Exception: {str(e)}")
-                self.failed_tests.append(test.__name__)
-        
-        print("=" * 60)
-        print("TEST SUMMARY")
-        print("=" * 60)
-        print(f"Total Tests: {total}")
-        print(f"Passed: {passed}")
-        print(f"Failed: {total - passed}")
-        print(f"Success Rate: {(passed/total)*100:.1f}%")
-        
-        if self.failed_tests:
-            print(f"\nFailed Tests:")
-            for test in self.failed_tests:
-                print(f"  - {test}")
-        
-        print("\n" + "=" * 60)
-        
-        return passed == total
+                return True, response.json()
+            except:
+                return True, response.text
+        else:
+            try:
+                error_data = response.json()
+                return False, f"Status {response.status_code}: {error_data}"
+            except:
+                return False, f"Status {response.status_code}: {response.text}"
+                
+    except requests.exceptions.RequestException as e:
+        return False, f"Request failed: {str(e)}"
 
-def main():
-    """Main test execution"""
-    tester = BlogAPITester()
-    success = tester.run_all_tests()
+def test_root_endpoint():
+    """Test root API endpoint"""
+    success, result = make_request('GET', '/')
+    if success and isinstance(result, dict) and result.get('message') == 'Blog API Ready':
+        log_test("Root API Endpoint", True, "API is ready")
+        return True
+    else:
+        log_test("Root API Endpoint", False, f"Unexpected response: {result}")
+        return False
+
+def test_admin_login():
+    """Test admin authentication with static credentials"""
+    global admin_token
     
-    # Exit with appropriate code
-    sys.exit(0 if success else 1)
+    # Test valid login
+    login_data = {
+        "email": ADMIN_EMAIL,
+        "password": ADMIN_PASSWORD
+    }
+    
+    success, result = make_request('POST', '/auth/login', login_data)
+    
+    if success and isinstance(result, dict) and result.get('success'):
+        admin_token = result.get('token')
+        user_data = result.get('user', {})
+        
+        if admin_token and user_data.get('email') == ADMIN_EMAIL and user_data.get('role') == 'admin':
+            log_test("Admin Login - Valid Credentials", True, f"Token received, user: {user_data.get('name')}")
+        else:
+            log_test("Admin Login - Valid Credentials", False, "Missing token or user data")
+            return False
+    else:
+        log_test("Admin Login - Valid Credentials", False, f"Login failed: {result}")
+        return False
+    
+    # Test invalid login
+    invalid_data = {
+        "email": "wrong@email.com",
+        "password": "wrongpass"
+    }
+    
+    success, result = make_request('POST', '/auth/login', invalid_data, expected_status=401)
+    
+    if success and isinstance(result, dict) and 'error' in result:
+        log_test("Admin Login - Invalid Credentials", True, "Correctly rejected invalid credentials")
+    else:
+        log_test("Admin Login - Invalid Credentials", False, f"Should have rejected: {result}")
+        return False
+    
+    return True
+
+def test_admin_me():
+    """Test getting current admin with token"""
+    if not admin_token:
+        log_test("Admin /me Endpoint", False, "No admin token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    success, result = make_request('GET', '/auth/me', headers=headers)
+    
+    if success and isinstance(result, dict) and result.get('email') == ADMIN_EMAIL:
+        log_test("Admin /me Endpoint", True, f"Admin data retrieved: {result.get('name')}")
+        return True
+    else:
+        log_test("Admin /me Endpoint", False, f"Failed to get admin data: {result}")
+        return False
+
+def test_newsletter_subscription():
+    """Test newsletter subscription functionality"""
+    test_email = f"test-{uuid.uuid4().hex[:8]}@example.com"
+    
+    # Test subscription
+    subscribe_data = {"email": test_email}
+    success, result = make_request('POST', '/subscribers', subscribe_data)
+    
+    if success and isinstance(result, dict) and result.get('success'):
+        log_test("Newsletter Subscription", True, f"Subscribed {test_email}")
+    else:
+        log_test("Newsletter Subscription", False, f"Subscription failed: {result}")
+        return False
+    
+    # Test duplicate subscription
+    success, result = make_request('POST', '/subscribers', subscribe_data, expected_status=400)
+    
+    if success and isinstance(result, dict) and 'error' in result:
+        log_test("Newsletter Duplicate Subscription", True, "Correctly rejected duplicate")
+    else:
+        log_test("Newsletter Duplicate Subscription", False, f"Should reject duplicate: {result}")
+        return False
+    
+    # Test unsubscribe
+    unsubscribe_data = {"email": test_email}
+    success, result = make_request('POST', '/subscribers/unsubscribe', unsubscribe_data)
+    
+    if success and isinstance(result, dict) and result.get('success'):
+        log_test("Newsletter Unsubscription", True, f"Unsubscribed {test_email}")
+        return True
+    else:
+        log_test("Newsletter Unsubscription", False, f"Unsubscription failed: {result}")
+        return False
+
+def test_get_subscribers():
+    """Test getting all subscribers (admin only)"""
+    if not admin_token:
+        log_test("Get Subscribers (Admin)", False, "No admin token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    success, result = make_request('GET', '/subscribers', headers=headers)
+    
+    if success and isinstance(result, list):
+        log_test("Get Subscribers (Admin)", True, f"Retrieved {len(result)} subscribers")
+        return True
+    else:
+        log_test("Get Subscribers (Admin)", False, f"Failed to get subscribers: {result}")
+        return False
+
+def test_create_post():
+    """Test creating a post (needed for comments and upvotes testing)"""
+    global test_post_id, test_post_slug
+    
+    if not admin_token:
+        log_test("Create Test Post", False, "No admin token available")
+        return False
+    
+    post_data = {
+        "title": f"Test Post {datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        "content": "This is a test post for testing comments and upvotes functionality.",
+        "excerpt": "Test post excerpt",
+        "status": "published",
+        "category": "Technology",
+        "tags": ["test", "api"]
+    }
+    
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    success, result = make_request('POST', '/posts', post_data, headers=headers)
+    
+    if success and isinstance(result, dict) and result.get('id'):
+        test_post_id = result.get('id')
+        test_post_slug = result.get('slug')
+        log_test("Create Test Post", True, f"Created post: {test_post_slug}")
+        return True
+    else:
+        log_test("Create Test Post", False, f"Failed to create post: {result}")
+        return False
+
+def test_get_posts():
+    """Test getting all posts"""
+    success, result = make_request('GET', '/posts')
+    
+    if success and isinstance(result, dict) and 'posts' in result:
+        posts = result.get('posts', [])
+        log_test("Get Posts", True, f"Retrieved {len(posts)} posts")
+        return True
+    else:
+        log_test("Get Posts", False, f"Failed to get posts: {result}")
+        return False
+
+def test_get_single_post():
+    """Test getting a single post by slug"""
+    if not test_post_slug:
+        log_test("Get Single Post", False, "No test post slug available")
+        return False
+    
+    success, result = make_request('GET', f'/posts/{test_post_slug}')
+    
+    if success and isinstance(result, dict) and result.get('slug') == test_post_slug:
+        upvote_count = result.get('upvote_count', 0)
+        log_test("Get Single Post", True, f"Retrieved post with {upvote_count} upvotes")
+        return True
+    else:
+        log_test("Get Single Post", False, f"Failed to get post: {result}")
+        return False
+
+def test_submit_comment():
+    """Test submitting a comment (goes to moderation)"""
+    global test_comment_id
+    
+    if not test_post_slug:
+        log_test("Submit Comment", False, "No test post available")
+        return False
+    
+    comment_data = {
+        "name": "Test User",
+        "email": "testuser@example.com",
+        "content": "This is a test comment for moderation testing."
+    }
+    
+    success, result = make_request('POST', f'/posts/{test_post_slug}/comments', comment_data)
+    
+    if success and isinstance(result, dict) and result.get('success'):
+        log_test("Submit Comment", True, "Comment submitted for moderation")
+        return True
+    else:
+        log_test("Submit Comment", False, f"Failed to submit comment: {result}")
+        return False
+
+def test_get_public_comments():
+    """Test getting approved comments (should be empty initially)"""
+    if not test_post_slug:
+        log_test("Get Public Comments", False, "No test post available")
+        return False
+    
+    success, result = make_request('GET', f'/posts/{test_post_slug}/comments')
+    
+    if success and isinstance(result, list):
+        log_test("Get Public Comments", True, f"Retrieved {len(result)} approved comments")
+        return True
+    else:
+        log_test("Get Public Comments", False, f"Failed to get comments: {result}")
+        return False
+
+def test_get_pending_comments():
+    """Test getting pending comments (admin only)"""
+    global test_comment_id
+    
+    if not admin_token:
+        log_test("Get Pending Comments", False, "No admin token available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    success, result = make_request('GET', '/admin/comments?status=pending', headers=headers)
+    
+    if success and isinstance(result, list):
+        # Find our test comment
+        for comment in result:
+            if comment.get('content') == "This is a test comment for moderation testing.":
+                test_comment_id = comment.get('id')
+                break
+        
+        log_test("Get Pending Comments", True, f"Retrieved {len(result)} pending comments")
+        return True
+    else:
+        log_test("Get Pending Comments", False, f"Failed to get pending comments: {result}")
+        return False
+
+def test_approve_comment():
+    """Test approving a comment"""
+    if not admin_token or not test_comment_id:
+        log_test("Approve Comment", False, "No admin token or comment ID available")
+        return False
+    
+    approve_data = {"status": "approved"}
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    success, result = make_request('PUT', f'/admin/comments/{test_comment_id}', approve_data, headers=headers)
+    
+    if success and isinstance(result, dict) and result.get('success'):
+        log_test("Approve Comment", True, "Comment approved successfully")
+        return True
+    else:
+        log_test("Approve Comment", False, f"Failed to approve comment: {result}")
+        return False
+
+def test_get_approved_comments():
+    """Test getting approved comments after approval"""
+    if not test_post_slug:
+        log_test("Get Approved Comments", False, "No test post available")
+        return False
+    
+    success, result = make_request('GET', f'/posts/{test_post_slug}/comments')
+    
+    if success and isinstance(result, list) and len(result) > 0:
+        log_test("Get Approved Comments", True, f"Retrieved {len(result)} approved comments")
+        return True
+    else:
+        log_test("Get Approved Comments", False, f"No approved comments found: {result}")
+        return False
+
+def test_upvote_post():
+    """Test upvoting a post"""
+    if not test_post_id:
+        log_test("Upvote Post", False, "No test post available")
+        return False
+    
+    upvote_data = {"visitor_id": test_visitor_id}
+    success, result = make_request('POST', f'/posts/{test_post_id}/upvote', upvote_data)
+    
+    if success and isinstance(result, dict) and result.get('upvoted') == True:
+        count = result.get('count', 0)
+        log_test("Upvote Post", True, f"Post upvoted, total count: {count}")
+        return True
+    else:
+        log_test("Upvote Post", False, f"Failed to upvote: {result}")
+        return False
+
+def test_get_upvote_status():
+    """Test getting upvote status"""
+    if not test_post_id:
+        log_test("Get Upvote Status", False, "No test post available")
+        return False
+    
+    success, result = make_request('GET', f'/posts/{test_post_id}/upvote?visitor_id={test_visitor_id}')
+    
+    if success and isinstance(result, dict) and result.get('upvoted') == True:
+        count = result.get('count', 0)
+        log_test("Get Upvote Status", True, f"Upvote status confirmed, count: {count}")
+        return True
+    else:
+        log_test("Get Upvote Status", False, f"Failed to get upvote status: {result}")
+        return False
+
+def test_toggle_upvote():
+    """Test toggling upvote (should remove it)"""
+    if not test_post_id:
+        log_test("Toggle Upvote", False, "No test post available")
+        return False
+    
+    upvote_data = {"visitor_id": test_visitor_id}
+    success, result = make_request('POST', f'/posts/{test_post_id}/upvote', upvote_data)
+    
+    if success and isinstance(result, dict) and result.get('upvoted') == False:
+        count = result.get('count', 0)
+        log_test("Toggle Upvote", True, f"Upvote removed, total count: {count}")
+        return True
+    else:
+        log_test("Toggle Upvote", False, f"Failed to toggle upvote: {result}")
+        return False
+
+def test_delete_comment():
+    """Test deleting a comment (admin only)"""
+    if not admin_token or not test_comment_id:
+        log_test("Delete Comment", False, "No admin token or comment ID available")
+        return False
+    
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    success, result = make_request('DELETE', f'/admin/comments/{test_comment_id}', headers=headers)
+    
+    if success and isinstance(result, dict) and result.get('success'):
+        log_test("Delete Comment", True, "Comment deleted successfully")
+        return True
+    else:
+        log_test("Delete Comment", False, f"Failed to delete comment: {result}")
+        return False
+
+def run_all_tests():
+    """Run all backend API tests"""
+    print("=" * 60)
+    print("BACKEND API TESTING - Enhanced Data Science Blog Platform")
+    print("=" * 60)
+    print()
+    
+    tests = [
+        ("Root API Endpoint", test_root_endpoint),
+        ("Admin Authentication", test_admin_login),
+        ("Admin /me Endpoint", test_admin_me),
+        ("Newsletter Subscription", test_newsletter_subscription),
+        ("Get Subscribers (Admin)", test_get_subscribers),
+        ("Create Test Post", test_create_post),
+        ("Get Posts", test_get_posts),
+        ("Get Single Post", test_get_single_post),
+        ("Submit Comment", test_submit_comment),
+        ("Get Public Comments (Empty)", test_get_public_comments),
+        ("Get Pending Comments", test_get_pending_comments),
+        ("Approve Comment", test_approve_comment),
+        ("Get Approved Comments", test_get_approved_comments),
+        ("Upvote Post", test_upvote_post),
+        ("Get Upvote Status", test_get_upvote_status),
+        ("Toggle Upvote", test_toggle_upvote),
+        ("Delete Comment", test_delete_comment),
+    ]
+    
+    passed = 0
+    failed = 0
+    
+    for test_name, test_func in tests:
+        try:
+            if test_func():
+                passed += 1
+            else:
+                failed += 1
+        except Exception as e:
+            log_test(test_name, False, f"Exception: {str(e)}")
+            failed += 1
+        
+        time.sleep(0.5)  # Small delay between tests
+    
+    print("=" * 60)
+    print("TEST SUMMARY")
+    print("=" * 60)
+    print(f"✅ PASSED: {passed}")
+    print(f"❌ FAILED: {failed}")
+    print(f"📊 TOTAL:  {passed + failed}")
+    print()
+    
+    if failed == 0:
+        print("🎉 ALL TESTS PASSED! Backend APIs are working correctly.")
+    else:
+        print(f"⚠️  {failed} test(s) failed. Please check the details above.")
+    
+    return failed == 0
 
 if __name__ == "__main__":
-    main()
+    run_all_tests()
