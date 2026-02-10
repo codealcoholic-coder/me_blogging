@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Plus, Edit, Trash2, Eye } from 'lucide-react'
+import { Plus, Edit, Trash2, Eye, ArrowLeft } from 'lucide-react'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 
@@ -37,7 +37,7 @@ export default function ManagePostsPage() {
 
   const fetchPosts = async () => {
     try {
-      const response = await fetch('/api/posts?limit=100')
+      const response = await fetch('/api/posts?limit=100&all=true')
       const data = await response.json()
       setPosts(data.posts || [])
     } catch (error) {
@@ -85,21 +85,24 @@ export default function ManagePostsPage() {
       <header className="border-b">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Manage Posts</h1>
-              <p className="text-muted-foreground">View and edit all blog posts</p>
-            </div>
-            <div className="flex gap-4">
-              <Button variant="outline" asChild>
-                <Link href="/admin">← Dashboard</Link>
-              </Button>
-              <Button asChild>
-                <Link href="/admin/posts/new">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Post
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" asChild>
+                <Link href="/admin">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Dashboard
                 </Link>
               </Button>
+              <div>
+                <h1 className="text-3xl font-bold">Manage Posts</h1>
+                <p className="text-muted-foreground">View and edit all blog posts</p>
+              </div>
             </div>
+            <Button asChild>
+              <Link href="/admin/posts/new">
+                <Plus className="mr-2 h-4 w-4" />
+                New Post
+              </Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -133,7 +136,7 @@ export default function ManagePostsPage() {
               <TableBody>
                 {posts.map((post) => (
                   <TableRow key={post.id}>
-                    <TableCell className="font-medium">{post.title}</TableCell>
+                    <TableCell className="font-medium max-w-xs truncate">{post.title}</TableCell>
                     <TableCell>
                       {post.category && <Badge variant="secondary">{post.category}</Badge>}
                     </TableCell>
@@ -149,10 +152,21 @@ export default function ManagePostsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      {post.published_at && format(new Date(post.published_at), 'MMM dd, yyyy')}
+                      {post.created_at && format(new Date(post.created_at), 'MMM dd, yyyy')}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
+                        {post.status === 'published' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                          >
+                            <Link href={`/blog/${post.slug}`} target="_blank">
+                              <Eye className="h-4 w-4" />
+                            </Link>
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon"
