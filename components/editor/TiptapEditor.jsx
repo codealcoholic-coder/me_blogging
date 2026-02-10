@@ -60,6 +60,7 @@ export default function TiptapEditor({ content, onChange }) {
       }),
     ],
     content: content,
+    immediatelyRender: false, 
     editorProps: {
       attributes: {
         class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-xl focus:outline-none max-w-none border rounded-md',
