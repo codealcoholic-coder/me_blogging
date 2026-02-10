@@ -153,11 +153,14 @@ backend:
     file: "app/api/[[...path]]/route.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: true
         agent: "main"
         comment: "GET/POST /api/posts/{slug}/comments, GET/PUT/DELETE /api/admin/comments - moderation queue"
+      - working: true
+        agent: "testing"
+        comment: "✅ TESTED: Comments moderation system working perfectly. POST /api/posts/{slug}/comments submits comments for moderation (status: pending), GET /api/posts/{slug}/comments returns only approved comments, GET /api/admin/comments?status=pending retrieves pending comments for admin, PUT /api/admin/comments/{id} approves comments, DELETE /api/admin/comments/{id} deletes comments. Full moderation workflow tested successfully."
 
   - task: "Upvotes API"
     implemented: true
