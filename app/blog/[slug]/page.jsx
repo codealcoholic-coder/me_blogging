@@ -6,9 +6,13 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
-import { Calendar, Eye, Clock, ArrowLeft } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Calendar, Eye, Clock, ArrowLeft, ThumbsUp, MessageSquare, Send } from 'lucide-react'
 import { format } from 'date-fns'
 import ShareButtons from '@/components/blog/ShareButtons'
+import { toast } from 'sonner'
 
 export default function BlogPostPage() {
   const params = useParams()
@@ -16,12 +20,37 @@ export default function BlogPostPage() {
   const [post, setPost] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // Upvote state
+  const [upvoted, setUpvoted] = useState(false)
+  const [upvoteCount, setUpvoteCount] = useState(0)
+  const [visitorId, setVisitorId] = useState('')
+  
+  // Comments state
+  const [comments, setComments] = useState([])
+  const [commentForm, setCommentForm] = useState({ name: '', email: '', content: '' })
+  const [submittingComment, setSubmittingComment] = useState(false)
 
   useEffect(() => {
+    // Get or create visitor ID
+    let vid = localStorage.getItem('visitor_id')
+    if (!vid) {
+      vid = 'visitor_' + Math.random().toString(36).substring(2, 15)
+      localStorage.setItem('visitor_id', vid)
+    }
+    setVisitorId(vid)
+
     if (params.slug) {
       fetchPost()
+      fetchComments()
     }
   }, [params.slug])
+
+  useEffect(() => {
+    if (post && visitorId) {
+      fetchUpvoteStatus()
+    }
+  }, [post, visitorId])
 
   const fetchPost = async () => {
     try {
@@ -31,11 +60,82 @@ export default function BlogPostPage() {
       }
       const data = await response.json()
       setPost(data)
+      setUpvoteCount(data.upvote_count || 0)
     } catch (error) {
       console.error('Error fetching post:', error)
       setError(error.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUpvoteStatus = async () => {
+    if (!post) return
+    try {
+      const response = await fetch(`/api/posts/${post.id}/upvote?visitor_id=${visitorId}`)
+      const data = await response.json()
+      setUpvoted(data.upvoted)
+      setUpvoteCount(data.count)
+    } catch (error) {
+      console.error('Error fetching upvote status:', error)
+    }
+  }
+
+  const fetchComments = async () => {
+    try {
+      const response = await fetch(`/api/posts/${params.slug}/comments`)
+      const data = await response.json()
+      setComments(data || [])
+    } catch (error) {
+      console.error('Error fetching comments:', error)
+    }
+  }
+
+  const handleUpvote = async () => {
+    if (!post) return
+    try {
+      const response = await fetch(`/api/posts/${post.id}/upvote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ visitor_id: visitorId })
+      })
+      const data = await response.json()
+      setUpvoted(data.upvoted)
+      setUpvoteCount(data.count)
+      toast.success(data.upvoted ? 'Thanks for the upvote!' : 'Upvote removed')
+    } catch (error) {
+      console.error('Error upvoting:', error)
+      toast.error('Failed to upvote')
+    }
+  }
+
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault()
+    if (!commentForm.name || !commentForm.email || !commentForm.content) {
+      toast.error('Please fill in all fields')
+      return
+    }
+
+    setSubmittingComment(true)
+    try {
+      const response = await fetch(`/api/posts/${params.slug}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(commentForm)
+      })
+      const data = await response.json()
+      
+      if (response.ok) {
+        toast.success('Comment submitted! It will appear after moderation.')
+        setCommentForm({ name: '', email: '', content: '' })
+      } else {
+        toast.error(data.error || 'Failed to submit comment')
+      }
+    } catch (error) {
+      console.error('Error submitting comment:', error)
+      toast.error('Failed to submit comment')
+    } finally {
+      setSubmittingComment(false)
     }
   }
 
@@ -134,15 +234,26 @@ export default function BlogPostPage() {
             </div>
           )}
 
-          {/* Share Buttons - MAIN FEATURE */}
+          {/* Share & Upvote Section */}
           <div className="border-t border-b py-4">
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-medium text-muted-foreground">Share this post:</span>
-              <ShareButtons
-                title={post.title}
-                excerpt={post.excerpt}
-                url={postUrl}
-              />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-muted-foreground">Share:</span>
+                <ShareButtons
+                  title={post.title}
+                  excerpt={post.excerpt}
+                  url={postUrl}
+                />
+              </div>
+              <Button
+                variant={upvoted ? "default" : "outline"}
+                size="sm"
+                onClick={handleUpvote}
+                className="flex items-center gap-2"
+              >
+                <ThumbsUp className={`h-4 w-4 ${upvoted ? 'fill-current' : ''}`} />
+                {upvoteCount}
+              </Button>
             </div>
           </div>
         </div>
@@ -156,19 +267,108 @@ export default function BlogPostPage() {
         </div>
 
         {/* Bottom Share Section */}
-        <Card className="p-6 bg-muted/50">
+        <Card className="p-6 bg-muted/50 mb-12">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold mb-1">Found this helpful?</h3>
               <p className="text-sm text-muted-foreground">Share it with your network!</p>
             </div>
-            <ShareButtons
-              title={post.title}
-              excerpt={post.excerpt}
-              url={postUrl}
-            />
+            <div className="flex items-center gap-4">
+              <ShareButtons
+                title={post.title}
+                excerpt={post.excerpt}
+                url={postUrl}
+              />
+              <Button
+                variant={upvoted ? "default" : "outline"}
+                onClick={handleUpvote}
+                className="flex items-center gap-2"
+              >
+                <ThumbsUp className={`h-4 w-4 ${upvoted ? 'fill-current' : ''}`} />
+                Upvote ({upvoteCount})
+              </Button>
+            </div>
           </div>
         </Card>
+
+        {/* Comments Section */}
+        <div className="space-y-8">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            <h2 className="text-2xl font-bold">Comments ({comments.length})</h2>
+          </div>
+
+          {/* Comment Form */}
+          <Card className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Leave a Comment</h3>
+            <form onSubmit={handleCommentSubmit} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    value={commentForm.name}
+                    onChange={(e) => setCommentForm({ ...commentForm, name: e.target.value })}
+                    placeholder="Your name"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={commentForm.email}
+                    onChange={(e) => setCommentForm({ ...commentForm, email: e.target.value })}
+                    placeholder="your@email.com"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Your email won't be published</p>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="content">Comment *</Label>
+                <Textarea
+                  id="content"
+                  value={commentForm.content}
+                  onChange={(e) => setCommentForm({ ...commentForm, content: e.target.value })}
+                  placeholder="Write your comment..."
+                  rows={4}
+                  required
+                />
+              </div>
+              <Button type="submit" disabled={submittingComment}>
+                {submittingComment ? 'Submitting...' : 'Submit Comment'}
+                <Send className="ml-2 h-4 w-4" />
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Comments are moderated and will appear after approval.
+              </p>
+            </form>
+          </Card>
+
+          {/* Comments List */}
+          {comments.length === 0 ? (
+            <Card className="p-8 text-center">
+              <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No comments yet. Be the first to share your thoughts!</p>
+            </Card>
+          ) : (
+            <div className="space-y-4">
+              {comments.map((comment) => (
+                <Card key={comment.id} className="p-6">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-semibold">{comment.name}</h4>
+                    <span className="text-xs text-muted-foreground">
+                      {format(new Date(comment.created_at), 'MMM dd, yyyy')}
+                    </span>
+                  </div>
+                  <p className="text-muted-foreground whitespace-pre-wrap">{comment.content}</p>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Navigation */}
         <div className="mt-12 flex justify-center">
