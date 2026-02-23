@@ -58,7 +58,10 @@
   title: String (required),
   slug: String (unique, required),
   excerpt: String,
-  content: String (HTML from Tiptap, required),
+  content: {
+      json: Object,        // Tiptap structured document
+      html: String         // Render-ready HTML
+    },
   featured_image: String (URL),
   featured_video: String (URL),
   
@@ -500,6 +503,7 @@ async function initializeDatabase() {
   await db.collection('users').createIndex({ id: 1 }, { unique: true })
   
   await db.collection('posts').createIndex({ slug: 1 }, { unique: true })
+  await db.collection('posts').createIndex({ status: 1, published_at: -1 })
   await db.collection('posts').createIndex({ published_at: -1 })
   await db.collection('posts').createIndex({ author_id: 1 })
   

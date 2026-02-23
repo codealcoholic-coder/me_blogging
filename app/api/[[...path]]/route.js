@@ -359,37 +359,87 @@ async function handleRoute(request, { params }) {
     }
 
     // POST create new post (admin only)
-    if (route === '/posts' && method === 'POST') {
-      const admin = await getAdminFromToken(request)
-      if (!admin) {
-        return handleCORS(NextResponse.json(
-          { error: "Unauthorized - Admin only" },
-          { status: 401 }
-        ))
+    // if (route === '/posts' && method === 'POST') {
+    //   const admin = await getAdminFromToken(request)
+    //   if (!admin) {
+    //     return handleCORS(NextResponse.json(
+    //       { error: "Unauthorized - Admin only" },
+    //       { status: 401 }
+    //     ))
+    //   }
+
+    //   const body = await request.json()
+    //   const post = {
+    //     id: uuidv4(),
+    //     ...body,
+    //     slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    //     author_id: admin.id,
+    //     author_name: admin.name,
+    //     view_count: 0,
+    //     created_at: new Date(),
+    //     updated_at: new Date(),
+    //     published_at: body.status === 'published' ? new Date() : null
+    //   }
+
+    //   await db.collection('posts').insertOne(post)
+
+    //   // Send newsletter if published
+    //   if (body.status === 'published') {
+    //     sendNewsletterEmails(post, db)
+    //   }
+
+    //   const { _id, ...postData } = post
+    //   return handleCORS(NextResponse.json(postData))
+    // }
+
+    if (route === "/posts" && method == 'POST') {
+      const body = await request.json()
+
+      // Normalize content
+      let content = body.content
+
+      if (typeof content === 'string') {
+        // Old HTML-only fallback
+        content = {
+          html: content,
+          json: null
+        }
       }
 
-      const body = await request.json()
+      // Generate excerpt from HTML (strip tags)
+      const plainText = content?.html
+        ?.replace(/<[^>]*>/g, '')
+        ?.trim() || ''
+
+      const excerpt = body.excerpt || plainText.slice(0, 180)
+
+      // Reading time (200 words per min)
+      const wordCount = plainText.split(/\s+/).filter(Boolean).length
+      const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+
       const post = {
         id: uuidv4(),
-        ...body,
+        title: body.title,
         slug: body.slug || body.title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        excerpt,
+        content, // structured object
+        featured_image: body.featured_image || null,
+        featured_video: body.featured_video || null,
+        category: body.category || null,
+        category_id: body.category_id || null,
+        tags: body.tags || [],
+        status: body.status || 'draft',
         author_id: admin.id,
         author_name: admin.name,
         view_count: 0,
+        like_count: 0,
+        comment_count: 0,
+        bookmark_count: 0,
+        reading_time_minutes: readingTime,
         created_at: new Date(),
         updated_at: new Date(),
         published_at: body.status === 'published' ? new Date() : null
       }
-
-      await db.collection('posts').insertOne(post)
-
-      // Send newsletter if published
-      if (body.status === 'published') {
-        sendNewsletterEmails(post, db)
-      }
-
-      const { _id, ...postData } = post
-      return handleCORS(NextResponse.json(postData))
     }
 
     // PUT update post (admin only)
@@ -409,8 +459,34 @@ async function handleRoute(request, { params }) {
       const currentPost = await db.collection('posts').findOne({ id })
       const wasPublished = currentPost?.status === 'published'
       
+      // const updateData = {
+      //   ...body,
+      //   updated_at: new Date()
+      // }
+
+      let content = body.content
+
+      if (typeof content === 'string') {
+        content = {
+          html: content,
+          json: null
+        }
+      }
+
+      const plainText = content?.html
+        ?.replace(/<[^>]*>/g, '')
+        ?.trim() || ''
+
+      const excerpt = body.excerpt || plainText.slice(0, 180)
+
+      const wordCount = plainText.split(/\s+/).filter(Boolean).length
+      const readingTime = Math.max(1, Math.ceil(wordCount / 200))
+
       const updateData = {
         ...body,
+        content,
+        excerpt,
+        reading_time_minutes: readingTime,
         updated_at: new Date()
       }
 

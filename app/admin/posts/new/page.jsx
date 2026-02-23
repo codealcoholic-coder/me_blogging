@@ -22,6 +22,7 @@ import TiptapEditor from '@/components/editor/TiptapEditor'
 export default function NewPostPage() {
   const router = useRouter()
   const [categories, setCategories] = useState([])
+  const [previewMode, setPreviewMode] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -172,7 +173,7 @@ export default function NewPostPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Content</CardTitle>
               </CardHeader>
@@ -182,6 +183,75 @@ export default function NewPostPage() {
                   onChange={(html) => handleChange('content', html)}
                 />
               </CardContent>
+            </Card> */}
+{/* 
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Content</CardTitle>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewMode(!previewMode)}
+                >
+                  {previewMode ? 'Back to Edit' : 'Preview'}
+                </Button>
+              </CardHeader>
+
+              <CardContent>
+                {!previewMode ? (
+                  <TiptapEditor
+                    content={formData.content}
+                    onChange={(html) => handleChange('content', html)}
+                  />
+                ) : (
+                  <div className="prose prose-lg dark:prose-invert max-w-none">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html:
+                          typeof formData.content === 'string'
+                            ? formData.content
+                            : formData.content?.html || ''
+                      }}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card> */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Content</CardTitle>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
+                {previewMode ? 'Back to Edit' : 'Preview'}
+              </Button>
+            </CardHeader>
+
+            <CardContent>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <TiptapEditor
+                    content={formData.content}
+                    onChange={(html) => handleChange('content', html)}
+                  />
+                </div>
+
+                <div className="prose prose-lg dark:prose-invert max-w-none border rounded-md p-4">
+                  <div
+                    dangerouslySetInnerHTML={{
+                      __html:
+                        typeof formData.content === 'string'
+                          ? formData.content
+                          : formData.content?.html || ''
+                    }}
+                  />
+                </div>
+              </div>
+            </CardContent>
             </Card>
           </div>
 

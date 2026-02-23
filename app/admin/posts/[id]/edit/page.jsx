@@ -36,6 +36,7 @@ export default function EditPostPage() {
     reading_time_minutes: 5
   })
   const [saving, setSaving] = useState(false)
+  const [previewMode, setPreviewMode] = useState(false)
   const [originalStatus, setOriginalStatus] = useState('draft')
 
   useEffect(() => {
@@ -221,7 +222,7 @@ export default function EditPostPage() {
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>Content</CardTitle>
               </CardHeader>
@@ -230,6 +231,40 @@ export default function EditPostPage() {
                   content={formData.content}
                   onChange={(html) => handleChange('content', html)}
                 />
+              </CardContent>
+            </Card> */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Content</CardTitle>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPreviewMode(!previewMode)}
+                >
+                  {previewMode ? 'Back to Edit' : 'Preview'}
+                </Button>
+              </CardHeader>
+
+              <CardContent>
+                {!previewMode ? (
+                  <TiptapEditor
+                    content={formData.content}
+                    onChange={(html) => handleChange('content', html)}
+                  />
+                ) : (
+                  // <div className="prose prose-lg dark:prose-invert max-w-none">
+                  <div className="prose prose-lg max-w-none">
+                    <div
+                      dangerouslySetInnerHTML={{
+                        __html:
+                          typeof formData.content === 'string'
+                            ? formData.content
+                            : formData.content?.html || ''
+                      }}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -259,10 +259,22 @@ export default function BlogPostPage() {
         </div>
 
         {/* Post Content */}
-        <div className="prose prose-lg dark:prose-invert max-w-none mb-12">
+        {/* <div className="prose prose-lg dark:prose-invert max-w-none mb-12">
           <div
             className="leading-relaxed"
             dangerouslySetInnerHTML={{ __html: post.content }}
+          />
+        </div> */}
+        {/* Post Content */}
+        <div className="prose prose-lg dark:prose-invert max-w-none mb-12">
+          <div
+            className="leading-relaxed"
+            dangerouslySetInnerHTML={{
+              __html:
+                typeof post.content === 'string'
+                  ? post.content            // old HTML-only posts
+                  : post.content?.html || '' // new structured posts
+            }}
           />
         </div>
 
